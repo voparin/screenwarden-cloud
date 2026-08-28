@@ -6,12 +6,21 @@ from sqlalchemy import (
 from sqlalchemy.orm import DeclarativeBase, relationship
 
 
-class Base(DeclarativeBase):
-    pass
-
-
 def _uuid():
     return str(uuid.uuid4())
+
+
+class Base(DeclarativeBase):
+    def __init__(self, **kwargs):
+        # Assign a UUID to 'id' immediately at instantiation if not provided,
+        # so user.id is available before flush (e.g. to set FK on related rows).
+        # SA wraps __init__ via _initialize_instance; do NOT call super().__init__
+        # with kwargs — that resolves to object.__init__ which rejects them.
+        # Set attributes directly; SA instrumentation fires via setattr.
+        if "id" not in kwargs and hasattr(self.__class__, "id"):
+            kwargs["id"] = _uuid()
+        for key, value in kwargs.items():
+            setattr(self, key, value)
 
 
 class Family(Base):

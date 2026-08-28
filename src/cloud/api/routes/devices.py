@@ -2,6 +2,7 @@ from datetime import datetime, timedelta
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import IntegrityError
 from cloud.db.session import get_db
 from cloud.db.models import Device, PairingCode, ChildUser
 from cloud.api.auth import get_current_family_id, generate_device_token, generate_pairing_code
@@ -55,6 +56,14 @@ def register_device(body: RegisterRequest, db: Session = Depends(get_db)):
     if datetime.utcnow() > pairing.expires_at:
         raise HTTPException(status_code=410, detail="Pairing code expired")
 
+    # Mark used atomically before creating device
+    pairing.used_at = datetime.utcnow()
+    try:
+        db.flush()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status_code=410, detail="Pairing code already used")
+
     device_token = pairing.device_token_pending or generate_device_token()
     device = Device(
         family_id=pairing.family_id,
@@ -62,7 +71,6 @@ def register_device(body: RegisterRequest, db: Session = Depends(get_db)):
         device_token=device_token,
     )
     db.add(device)
-    pairing.used_at = datetime.utcnow()
     db.commit()
     return {"device_token": device_token}
 

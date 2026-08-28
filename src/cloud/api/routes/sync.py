@@ -48,9 +48,15 @@ def sync(
             db.add(user)
             db.flush()
 
+        # Parse date with error handling
+        try:
+            entry_date = date_type.fromisoformat(entry.date)
+        except ValueError:
+            raise HTTPException(status_code=422, detail=f"Invalid date format: {entry.date}")
+
         # Upsert daily usage mirror
         usage = db.query(DailyUsageMirror).filter_by(
-            user_id=user.id, date=date_type.fromisoformat(entry.date)
+            user_id=user.id, date=entry_date
         ).first()
         if usage:
             usage.total_seconds = entry.total_seconds
@@ -58,7 +64,7 @@ def sync(
         else:
             usage = DailyUsageMirror(
                 user_id=user.id,
-                date=date_type.fromisoformat(entry.date),
+                date=entry_date,
                 total_seconds=entry.total_seconds,
             )
             db.add(usage)

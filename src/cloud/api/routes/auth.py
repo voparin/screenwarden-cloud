@@ -1,5 +1,7 @@
 from datetime import timedelta
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from cloud.db.session import get_db
@@ -10,6 +12,7 @@ from cloud.api.auth import (
 )
 
 router = APIRouter()
+limiter = Limiter(key_func=get_remote_address)
 
 
 class SignupRequest(BaseModel):
@@ -43,7 +46,8 @@ def signup(body: SignupRequest, db: Session = Depends(get_db)):
 
 
 @router.post("/login")
-def login(body: LoginRequest, db: Session = Depends(get_db)):
+@limiter.limit("5/minute")
+def login(request: Request, body: LoginRequest, db: Session = Depends(get_db)):
     family = db.query(Family).filter_by(email=body.email).first()
     if not family or not verify_password(body.password, family.password_hash):
         raise HTTPException(status_code=401, detail="Invalid credentials")

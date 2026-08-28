@@ -1,12 +1,21 @@
 from datetime import datetime, date as date_type
 from typing import List
-from fastapi import APIRouter, Depends, HTTPException, Header
+from fastapi import APIRouter, Depends, HTTPException, Header, Request
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from cloud.db.session import get_db
 from cloud.db.models import Device, ChildUser, DailyUsageMirror, Command, ConfigMirror
 
 router = APIRouter()
+
+
+def _device_or_ip(request: Request) -> str:
+    return request.headers.get("x-device-token") or get_remote_address(request)
+
+
+limiter = Limiter(key_func=_device_or_ip)
 
 
 class UserSyncEntry(BaseModel):
@@ -33,7 +42,9 @@ def get_device_from_token(
 
 
 @router.post("/sync")
+@limiter.limit("3/minute")
 def sync(
+    request: Request,
     body: SyncRequest,
     device: Device = Depends(get_device_from_token),
     db: Session = Depends(get_db),

@@ -20,4 +20,4 @@ def get_db() -> Generator[Session, None, None]:
 
 
 def create_tables():
-    Base.metadata.create_all(bind=engine)
+    Base.metadata.create_all(bind=engine, checkfirst=True)

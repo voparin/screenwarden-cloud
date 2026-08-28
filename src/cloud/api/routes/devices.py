@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timezone, timedelta
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
@@ -39,7 +39,7 @@ def create_pairing_code(
         family_id=family_id,
         device_token_pending=pending_token,
         initiated_by="parent",
-        expires_at=datetime.utcnow() + timedelta(minutes=10),
+        expires_at=datetime.now(timezone.utc) + timedelta(minutes=10),
     )
     db.add(pairing)
     db.commit()
@@ -53,11 +53,14 @@ def register_device(body: RegisterRequest, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Pairing code not found")
     if pairing.used_at is not None:
         raise HTTPException(status_code=410, detail="Pairing code already used")
-    if datetime.utcnow() > pairing.expires_at:
+    expires_at = pairing.expires_at
+    if expires_at.tzinfo is None:
+        expires_at = expires_at.replace(tzinfo=timezone.utc)
+    if datetime.now(timezone.utc) > expires_at:
         raise HTTPException(status_code=410, detail="Pairing code expired")
 
     # Mark used atomically before creating device
-    pairing.used_at = datetime.utcnow()
+    pairing.used_at = datetime.now(timezone.utc)
     try:
         db.flush()
     except IntegrityError:

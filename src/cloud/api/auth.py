@@ -53,4 +53,7 @@ def get_current_family_id(
     payload = decode_access_token(credentials.credentials)
     if not payload or payload.get("type") != "access":
         raise HTTPException(status_code=401, detail="Invalid or expired token")
-    return payload["sub"]
+    family_id = payload.get("sub")
+    if not family_id:
+        raise HTTPException(status_code=401, detail="Invalid token claims")
+    return family_id

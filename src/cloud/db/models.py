@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime, date
+from datetime import datetime, timezone, date
 from sqlalchemy import (
     Column, String, Integer, Text, DateTime, Date, ForeignKey, UniqueConstraint, JSON
 )
@@ -28,7 +28,7 @@ class Family(Base):
     id = Column(String, primary_key=True, default=_uuid)
     email = Column(Text, nullable=False, unique=True)
     password_hash = Column(Text, nullable=False)
-    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    created_at = Column(DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
     devices = relationship("Device", back_populates="family")
 
 
@@ -39,7 +39,7 @@ class Device(Base):
     name = Column(Text, nullable=False)
     device_token = Column(Text, nullable=False, unique=True)
     last_seen_at = Column(DateTime, nullable=True)
-    registered_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    registered_at = Column(DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
     family = relationship("Family", back_populates="devices")
     child_users = relationship("ChildUser", back_populates="device")
 
@@ -63,7 +63,7 @@ class DailyUsageMirror(Base):
     user_id = Column(String, ForeignKey("child_users.id"), nullable=False)
     date = Column(Date, nullable=False)
     total_seconds = Column(Integer, nullable=False, default=0)
-    synced_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    synced_at = Column(DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
     user = relationship("ChildUser", back_populates="usage_rows")
 
 
@@ -73,7 +73,7 @@ class Command(Base):
     user_id = Column(String, ForeignKey("child_users.id"), nullable=False)
     type = Column(Text, nullable=False)
     payload = Column(JSON, nullable=False)
-    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    created_at = Column(DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
     picked_up_at = Column(DateTime, nullable=True)
     user = relationship("ChildUser", back_populates="commands")
 
@@ -85,7 +85,7 @@ class ConfigMirror(Base):
     daily_limit_minutes = Column(Integer, nullable=False)
     warning_minutes = Column(Integer, nullable=False)
     grace_minutes = Column(Integer, nullable=False)
-    updated_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    updated_at = Column(DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
     user = relationship("ChildUser", back_populates="config")
 
 

@@ -1,7 +1,5 @@
 from datetime import timedelta
 from fastapi import APIRouter, Depends, HTTPException, Request
-from slowapi import Limiter
-from slowapi.util import get_remote_address
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from cloud.db.session import get_db
@@ -10,9 +8,9 @@ from cloud.api.auth import (
     hash_password, verify_password,
     create_access_token,
 )
+from cloud.api.limiter import limiter
 
 router = APIRouter()
-limiter = Limiter(key_func=get_remote_address)
 
 
 class SignupRequest(BaseModel):

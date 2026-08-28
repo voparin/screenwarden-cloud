@@ -1,21 +1,13 @@
-from datetime import datetime, date as date_type
+from datetime import datetime, timezone, date as date_type
 from typing import List
 from fastapi import APIRouter, Depends, HTTPException, Header, Request
-from slowapi import Limiter
-from slowapi.util import get_remote_address
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from cloud.db.session import get_db
 from cloud.db.models import Device, ChildUser, DailyUsageMirror, Command, ConfigMirror
+from cloud.api.limiter import sync_limiter as limiter
 
 router = APIRouter()
-
-
-def _device_or_ip(request: Request) -> str:
-    return request.headers.get("x-device-token") or get_remote_address(request)
-
-
-limiter = Limiter(key_func=_device_or_ip)
 
 
 class UserSyncEntry(BaseModel):
@@ -36,7 +28,7 @@ def get_device_from_token(
     device = db.query(Device).filter_by(device_token=x_device_token).first()
     if not device:
         raise HTTPException(status_code=401, detail="Invalid device token")
-    device.last_seen_at = datetime.utcnow()
+    device.last_seen_at = datetime.now(timezone.utc)
     db.commit()
     return device
 
@@ -71,7 +63,7 @@ def sync(
         ).first()
         if usage:
             usage.total_seconds = entry.total_seconds
-            usage.synced_at = datetime.utcnow()
+            usage.synced_at = datetime.now(timezone.utc)
         else:
             usage = DailyUsageMirror(
                 user_id=user.id,
@@ -89,7 +81,7 @@ def sync(
                 "type": cmd.type,
                 "payload": cmd.payload,
             })
-            cmd.picked_up_at = datetime.utcnow()
+            cmd.picked_up_at = datetime.now(timezone.utc)
 
         # Collect config
         cfg = db.query(ConfigMirror).filter_by(user_id=user.id).first()

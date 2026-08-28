@@ -1,7 +1,7 @@
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 from cloud.db.session import get_db
 from cloud.db.models import ChildUser, DailyUsageMirror, Command, ConfigMirror, Device
@@ -56,7 +56,7 @@ def get_history(
 
 
 class GrantRequest(BaseModel):
-    extra_minutes: int
+    extra_minutes: int = Field(..., gt=0, description="Must be positive")
     reason: Optional[str] = None
 
 
@@ -79,9 +79,9 @@ def create_grant(
 
 
 class ConfigRequest(BaseModel):
-    daily_limit_minutes: int
-    warning_minutes: int
-    grace_minutes: int
+    daily_limit_minutes: int = Field(..., gt=0)
+    warning_minutes: int = Field(..., ge=0)
+    grace_minutes: int = Field(..., ge=0)
 
 
 @router.put("/{user_id}/config")
@@ -97,7 +97,7 @@ def update_config(
         cfg.daily_limit_minutes = body.daily_limit_minutes
         cfg.warning_minutes = body.warning_minutes
         cfg.grace_minutes = body.grace_minutes
-        cfg.updated_at = datetime.utcnow()
+        cfg.updated_at = datetime.now(timezone.utc)
     else:
         cfg = ConfigMirror(
             user_id=user.id,
